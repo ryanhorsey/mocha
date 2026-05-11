@@ -8,43 +8,55 @@ type JournalEntry = typeof journalEntries.$inferSelect;
 
 interface JournalStore {
   entries: JournalEntry[];
-  todayEntry: JournalEntry | null;
   load: (today: string) => Promise<void>;
-  saveEntry: (date: string, content: string, mood?: number) => Promise<void>;
+  addEntry: (date: string, content: string, mood?: number) => Promise<void>;
+  updateEntry: (id: string, content: string, mood?: number) => Promise<void>;
+  deleteEntry: (id: string) => Promise<void>;
 }
 
 export const useJournalStore = create<JournalStore>((set, get) => ({
   entries: [],
-  todayEntry: null,
 
-  load: async (today) => {
+  load: async (_today) => {
     if (!db) return;
     const all = await db.query.journalEntries.findMany({
-      orderBy: (e, { desc }) => [desc(e.date)],
+      orderBy: (e, { desc }) => [desc(e.createdAt)],
     });
-    const todayEntry = all.find((e) => e.date === today) ?? null;
-    set({ entries: all, todayEntry });
+    set({ entries: all });
   },
 
-  saveEntry: async (date, content, mood) => {
-    if (!db) return;
-    const existing = get().todayEntry;
+  addEntry: async (date, content, mood) => {
     const now = new Date();
-    if (existing) {
+    const newEntry: JournalEntry = {
+      id: randomUUID(),
+      date,
+      content,
+      mood: mood ?? null,
+      tags: "[]",
+      createdAt: now,
+      updatedAt: now,
+    };
+    set((s) => ({ entries: [newEntry, ...s.entries] }));
+    if (db) await db.insert(journalEntries).values(newEntry);
+  },
+
+  updateEntry: async (id, content, mood) => {
+    const now = new Date();
+    set((s) => ({
+      entries: s.entries.map((e) =>
+        e.id === id ? { ...e, content, mood: mood ?? e.mood, updatedAt: now } : e
+      ),
+    }));
+    if (db) {
       await db
         .update(journalEntries)
-        .set({ content, mood: mood ?? existing.mood, updatedAt: now })
-        .where(eq(journalEntries.id, existing.id));
-    } else {
-      await db.insert(journalEntries).values({
-        id: randomUUID(),
-        date,
-        content,
-        mood: mood ?? null,
-        createdAt: now,
-        updatedAt: now,
-      });
+        .set({ content, mood: mood ?? undefined, updatedAt: now })
+        .where(eq(journalEntries.id, id));
     }
-    await get().load(date);
+  },
+
+  deleteEntry: async (id) => {
+    set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
+    if (db) await db.delete(journalEntries).where(eq(journalEntries.id, id));
   },
 }));

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ScrollView, View, TouchableOpacity, TextInput, Modal } from "react-native";
+import { ScrollView, View, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "../../components/ui/Text";
 import { Card } from "../../components/ui/Card";
@@ -7,11 +7,14 @@ import { Button } from "../../components/ui/Button";
 import { useTasksStore } from "../../lib/store/tasks";
 import { PRIORITY_COLORS, Priority } from "../../types";
 
+type Task = { id: string; title: string; priority: string };
+
 const PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
 
 export default function TasksScreen() {
-  const { tasks, load, addTask, completeTask, deleteTask } = useTasksStore();
-  const [showAdd, setShowAdd] = useState(false);
+  const { tasks, load, addTask, updateTask, completeTask, deleteTask } = useTasksStore();
+  const [showModal, setShowModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
 
@@ -19,12 +22,35 @@ export default function TasksScreen() {
     load();
   }, []);
 
-  const handleAdd = async () => {
-    if (!title.trim()) return;
-    await addTask({ title: title.trim(), description: null, priority, dueDate: null });
+  function handleAddPress() {
+    setEditingTask(null);
     setTitle("");
     setPriority("medium");
-    setShowAdd(false);
+    setShowModal(true);
+  }
+
+  function handleEditPress(task: Task) {
+    setEditingTask(task);
+    setTitle(task.title);
+    setPriority((task.priority as Priority) ?? "medium");
+    setShowModal(true);
+  }
+
+  function handleDeletePress(task: Task) {
+    Alert.alert("Delete task", `Delete "${task.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteTask(task.id) },
+    ]);
+  }
+
+  const handleSave = async () => {
+    if (!title.trim()) return;
+    if (editingTask) {
+      await updateTask(editingTask.id, { title: title.trim(), priority });
+    } else {
+      await addTask({ title: title.trim(), description: null, priority, dueDate: null });
+    }
+    setShowModal(false);
   };
 
   return (
@@ -33,7 +59,7 @@ export default function TasksScreen() {
         <View className="flex-row items-center justify-between mt-4 mb-6">
           <Text className="text-3xl font-bold">Tasks ✓</Text>
           <TouchableOpacity
-            onPress={() => setShowAdd(true)}
+            onPress={handleAddPress}
             className="bg-mocha-600 rounded-full w-9 h-9 items-center justify-center"
           >
             <Text className="text-white text-xl font-light">+</Text>
@@ -73,19 +99,26 @@ export default function TasksScreen() {
                     <Text className="text-xs text-mocha-400">Due {task.dueDate}</Text>
                   )}
                 </View>
+                <View className="flex-row gap-4 mt-2">
+                  <TouchableOpacity onPress={() => handleEditPress(task)}>
+                    <Text className="text-xs font-semibold text-mocha-500">Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeletePress(task)}>
+                    <Text className="text-xs font-semibold text-red-400">Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <TouchableOpacity onPress={() => deleteTask(task.id)} className="pl-2">
-                <Text className="text-mocha-300 text-lg">×</Text>
-              </TouchableOpacity>
             </View>
           </Card>
         ))}
       </ScrollView>
 
-      <Modal visible={showAdd} animationType="slide" transparent>
+      <Modal visible={showModal} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-mocha-50 rounded-t-3xl p-6">
-            <Text className="text-xl font-bold mb-4">New Task</Text>
+            <Text className="text-xl font-bold mb-4">
+              {editingTask ? "Edit Task" : "New Task"}
+            </Text>
             <TextInput
               className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-4"
               placeholder="Task title"
@@ -114,8 +147,8 @@ export default function TasksScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Button label="Add Task" onPress={handleAdd} className="mb-3" />
-            <Button label="Cancel" variant="ghost" onPress={() => setShowAdd(false)} />
+            <Button label={editingTask ? "Save" : "Add Task"} onPress={handleSave} className="mb-3" />
+            <Button label="Cancel" variant="ghost" onPress={() => setShowModal(false)} />
           </View>
         </View>
       </Modal>

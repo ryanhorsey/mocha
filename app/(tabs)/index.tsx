@@ -1,14 +1,13 @@
-import { useEffect } from "react";
-import { ScrollView, View, TouchableOpacity } from "react-native";
+import { useState, useCallback } from "react";
+import { ScrollView, View, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { Text } from "../../components/ui/Text";
 import { Card } from "../../components/ui/Card";
 import { useHabitsStore } from "../../lib/store/habits";
 import { useTasksStore } from "../../lib/store/tasks";
 import { useJournalStore } from "../../lib/store/journal";
-import { MOOD_EMOJIS } from "../../types";
-
-const TODAY = new Date().toISOString().split("T")[0];
+import { useRecommendationsStore } from "../../lib/store/recommendations";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -27,17 +26,65 @@ function greeting() {
 }
 
 export default function TodayScreen() {
-  const { habits, todayLogs, load: loadHabits, toggleHabit, isCompletedToday } = useHabitsStore();
-  const { tasks, load: loadTasks, completeTask } = useTasksStore();
-  const { todayEntry } = useJournalStore();
+  const { habits, load: loadHabits, toggleHabit, isCompletedToday, addHabit } = useHabitsStore();
+  const { tasks, load: loadTasks, completeTask, addTask } = useTasksStore();
+  const { entries } = useJournalStore();
+  const { items: recs, loading: recsLoading, error: recsError, load: loadRecs, generate, accept, dismiss } = useRecommendationsStore();
+  const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
 
-  useEffect(() => {
-    loadHabits(TODAY);
-    loadTasks();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const newToday = new Date().toISOString().split("T")[0];
+      setToday(newToday);
+      loadHabits(newToday);
+      loadTasks();
+      loadRecs(newToday).then(() => {
+        const pending = useRecommendationsStore.getState().items.filter((r) => r.status === "pending");
+        if (pending.length === 0) {
+          triggerGenerate(newToday);
+        }
+      });
+    }, [])
+  );
+
+  function triggerGenerate(date: string) {
+    const recentMoods = entries.slice(0, 7).map((e) => e.mood);
+    generate({
+      today: date,
+      habits: habits.map((h) => ({ name: h.name, description: h.description })),
+      tasks: tasks.map((t) => ({ title: t.title })),
+      recentMoods,
+    });
+  }
+
+  async function handleAccept(id: string) {
+    const rec = recs.find((r) => r.id === id);
+    if (!rec) return;
+
+    if (rec.type === "habit") {
+      const completedCount = habits.filter((h) => isCompletedToday(h.id)).length;
+      const canAdd = habits.length === 0 || completedCount / habits.length >= 0.5;
+      if (!canAdd) {
+        Alert.alert(
+          "Finish what you started",
+          `Complete at least ${Math.ceil(habits.length / 2)} of today's habits before adding a new one.`
+        );
+        return;
+      }
+    }
+
+    await accept(id);
+    if (rec.type === "habit") {
+      await addHabit({ name: rec.title, description: rec.description, color: "#c67332", icon: "circle", frequency: "daily" });
+    } else {
+      await addTask({ title: rec.title, description: rec.description, priority: "medium", dueDate: null });
+    }
+  }
 
   const completedHabits = habits.filter((h) => isCompletedToday(h.id)).length;
-  const todayTasks = tasks.filter((t) => t.dueDate === TODAY || !t.dueDate).slice(0, 5);
+  const todayTasks = tasks.filter((t) => t.dueDate === today || !t.dueDate).slice(0, 5);
+  const todayEntries = entries.filter((e) => e.date === today);
+  const pendingRecs = recs.filter((r) => r.status === "pending");
 
   return (
     <SafeAreaView className="flex-1 bg-mocha-50">
@@ -61,12 +108,12 @@ export default function TodayScreen() {
           {habits.length === 0 ? (
             <Text className="text-sm text-mocha-400">No habits yet. Add one in the Habits tab.</Text>
           ) : (
-            habits.slice(0, 4).map((habit) => {
+            habits.map((habit) => {
               const done = isCompletedToday(habit.id);
               return (
                 <TouchableOpacity
                   key={habit.id}
-                  onPress={() => toggleHabit(habit.id, TODAY)}
+                  onPress={() => toggleHabit(habit.id, today)}
                   className="flex-row items-center py-2"
                 >
                   <View
@@ -113,18 +160,95 @@ export default function TodayScreen() {
         </Card>
 
         {/* Journal prompt */}
-        <Card className="mb-8">
+        <Card className="mb-4">
           <Text className="text-base font-bold mb-2">Journal</Text>
-          {todayEntry ? (
-            <Text className="text-sm text-mocha-600" numberOfLines={3}>
-              {todayEntry.content}
-            </Text>
+          {todayEntries.length > 0 ? (
+            <>
+              <Text className="text-xs text-mocha-400 mb-1">
+                {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today
+              </Text>
+              <Text className="text-sm text-mocha-600" numberOfLines={3}>
+                {todayEntries[0].content}
+              </Text>
+            </>
           ) : (
             <Text className="text-sm text-mocha-400">
               You haven't written today. Head to the Journal tab to reflect.
             </Text>
           )}
         </Card>
+
+        {/* Recommendations */}
+        <View className="mb-8">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-base font-bold">Suggested for you</Text>
+            {recsLoading && <ActivityIndicator size="small" color="#c67332" />}
+          </View>
+
+          {recsError ? (
+            <Card>
+              <Text className="text-sm text-mocha-400 text-center">{recsError}</Text>
+            </Card>
+          ) : pendingRecs.length === 0 && !recsLoading ? (
+            <Card>
+              <Text className="text-sm text-mocha-400 text-center mb-3">
+                All suggestions reviewed for today.
+              </Text>
+              <TouchableOpacity
+                onPress={() => triggerGenerate(today)}
+                className="bg-mocha-100 rounded-xl py-2 px-4 self-center"
+              >
+                <Text className="text-sm font-semibold text-mocha-700">Get more suggestions</Text>
+              </TouchableOpacity>
+            </Card>
+          ) : (
+            <>
+              {pendingRecs.map((rec) => (
+                <Card key={rec.id} className="mb-3">
+                  <View className="flex-row items-start justify-between mb-1">
+                    <View className="flex-1 mr-3">
+                      <View className="flex-row items-center gap-2 mb-1">
+                        <View className="bg-mocha-100 rounded-full px-2 py-0.5">
+                          <Text className="text-xs font-semibold text-mocha-600 capitalize">{rec.type}</Text>
+                        </View>
+                        <Text className="text-sm font-bold text-mocha-900 flex-1">{rec.title}</Text>
+                      </View>
+                      {rec.description && (
+                        <Text className="text-sm text-mocha-700 mb-1">{rec.description}</Text>
+                      )}
+                      {rec.reasoning && (
+                        <Text className="text-xs text-mocha-400 italic">{rec.reasoning}</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View className="flex-row gap-2 mt-3">
+                    <TouchableOpacity
+                      onPress={() => handleAccept(rec.id)}
+                      className="flex-1 bg-mocha-600 rounded-xl py-2 items-center"
+                    >
+                      <Text className="text-white text-sm font-semibold">Add</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => dismiss(rec.id)}
+                      className="flex-1 bg-mocha-100 rounded-xl py-2 items-center"
+                    >
+                      <Text className="text-mocha-600 text-sm font-semibold">Skip</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+              ))}
+
+              {!recsLoading && (
+                <TouchableOpacity
+                  onPress={() => triggerGenerate(today)}
+                  className="items-center py-3"
+                >
+                  <Text className="text-sm font-semibold text-mocha-500">Give me more suggestions</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

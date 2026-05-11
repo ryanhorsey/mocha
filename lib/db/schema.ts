@@ -52,3 +52,14 @@ export const journalEntries = sqliteTable("journal_entries", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const recommendations = sqliteTable("recommendations", {
+  id: text("id").primaryKey(),
+  date: text("date").notNull(),
+  type: text("type").notNull(), // 'habit' | 'task'
+  title: text("title").notNull(),
+  description: text("description"),
+  reasoning: text("reasoning"),
+  status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'dismissed'
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});

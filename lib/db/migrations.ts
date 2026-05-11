@@ -63,4 +63,17 @@ export async function runMigrations() {
       updated_at INTEGER NOT NULL
     )
   `);
+
+  await db.run(sql`
+    CREATE TABLE IF NOT EXISTS recommendations (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      reasoning TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL
+    )
+  `);
 }

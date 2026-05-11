@@ -1,13 +1,20 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { runMigrations } from "../lib/db/migrations";
 
 export default function RootLayout() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    runMigrations().catch(console.error);
+    runMigrations()
+      .then(() => setReady(true))
+      .catch(console.error);
   }, []);
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: "#fdf8f3" }} />;
 
   return (
     <>

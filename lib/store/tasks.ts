@@ -10,6 +10,7 @@ interface TasksStore {
   tasks: Task[];
   load: () => Promise<void>;
   addTask: (data: Pick<Task, "title" | "description" | "priority" | "dueDate">) => Promise<void>;
+  updateTask: (id: string, data: Pick<Task, "title" | "priority">) => Promise<void>;
   completeTask: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 }
@@ -27,29 +28,40 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
   },
 
   addTask: async (data) => {
-    if (!db) return;
     const now = new Date();
-    await db.insert(tasks).values({
+    const newTask: Task = {
       id: randomUUID(),
       title: data.title,
       description: data.description ?? null,
       priority: data.priority ?? "medium",
       dueDate: data.dueDate ?? null,
+      completedAt: null,
+      projectId: null,
+      tags: "[]",
       createdAt: now,
       updatedAt: now,
-    });
-    await get().load();
+    };
+    set((s) => ({ tasks: [...s.tasks, newTask] }));
+    if (db) await db.insert(tasks).values(newTask);
+  },
+
+  updateTask: async (id, data) => {
+    const now = new Date();
+    set((s) => ({
+      tasks: s.tasks.map((t) =>
+        t.id === id ? { ...t, title: data.title, priority: data.priority, updatedAt: now } : t
+      ),
+    }));
+    if (db) await db.update(tasks).set({ title: data.title, priority: data.priority, updatedAt: now }).where(eq(tasks.id, id));
   },
 
   completeTask: async (id) => {
-    if (!db) return;
-    await db.update(tasks).set({ completedAt: new Date(), updatedAt: new Date() }).where(eq(tasks.id, id));
-    await get().load();
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+    if (db) await db.update(tasks).set({ completedAt: new Date(), updatedAt: new Date() }).where(eq(tasks.id, id));
   },
 
   deleteTask: async (id) => {
-    if (!db) return;
-    await db.delete(tasks).where(eq(tasks.id, id));
-    await get().load();
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+    if (db) await db.delete(tasks).where(eq(tasks.id, id));
   },
 }));

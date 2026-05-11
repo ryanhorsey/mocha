@@ -1,27 +1,69 @@
-import { useEffect, useState } from "react";
-import { ScrollView, View, TouchableOpacity, TextInput, Modal } from "react-native";
+import { useState, useCallback } from "react";
+import { ScrollView, View, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { Text } from "../../components/ui/Text";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useHabitsStore } from "../../lib/store/habits";
 
-const TODAY = new Date().toISOString().split("T")[0];
+type Habit = { id: string; name: string; description: string | null };
 
 export default function HabitsScreen() {
-  const { habits, load, toggleHabit, addHabit, isCompletedToday } = useHabitsStore();
-  const [showAdd, setShowAdd] = useState(false);
+  const { habits, load, toggleHabit, addHabit, updateHabit, deleteHabit, isCompletedToday, getStreak } = useHabitsStore();
+  const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
-  useEffect(() => {
-    load(TODAY);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const newToday = new Date().toISOString().split("T")[0];
+      setToday(newToday);
+      load(newToday);
+    }, [])
+  );
 
-  const handleAdd = async () => {
-    if (!name.trim()) return;
-    await addHabit({ name: name.trim(), description: null, color: "#c67332", icon: "circle", frequency: "daily" });
+  const completedCount = habits.filter((h) => isCompletedToday(h.id)).length;
+  const canAddHabit = habits.length === 0 || completedCount / habits.length >= 0.5;
+
+  function handleAddPress() {
+    if (!canAddHabit) {
+      Alert.alert(
+        "Finish what you started",
+        `Complete at least ${Math.ceil(habits.length / 2)} of today's habits before adding a new one.`
+      );
+      return;
+    }
+    setEditingHabit(null);
     setName("");
-    setShowAdd(false);
+    setDescription("");
+    setShowModal(true);
+  }
+
+  function handleEditPress(habit: Habit) {
+    setEditingHabit(habit);
+    setName(habit.name);
+    setDescription(habit.description ?? "");
+    setShowModal(true);
+  }
+
+  function handleDeletePress(habit: Habit) {
+    Alert.alert("Remove habit", `Remove "${habit.name}"? This can't be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => deleteHabit(habit.id) },
+    ]);
+  }
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    if (editingHabit) {
+      await updateHabit(editingHabit.id, { name: name.trim(), description: description.trim() || null });
+    } else {
+      await addHabit({ name: name.trim(), description: description.trim() || null, color: "#c67332", icon: "circle", frequency: "daily" });
+    }
+    setShowModal(false);
   };
 
   return (
@@ -30,7 +72,7 @@ export default function HabitsScreen() {
         <View className="flex-row items-center justify-between mt-4 mb-6">
           <Text className="text-3xl font-bold">Habits 🔥</Text>
           <TouchableOpacity
-            onPress={() => setShowAdd(true)}
+            onPress={handleAddPress}
             className="bg-mocha-600 rounded-full w-9 h-9 items-center justify-center"
           >
             <Text className="text-white text-xl font-light">+</Text>
@@ -50,14 +92,27 @@ export default function HabitsScreen() {
           return (
             <Card key={habit.id} className="mb-3">
               <View className="flex-row items-center justify-between">
-                <View className="flex-1">
+                <View className="flex-1 mr-3">
                   <Text className="text-base font-semibold">{habit.name}</Text>
                   {habit.description && (
                     <Text className="text-sm text-mocha-400 mt-0.5">{habit.description}</Text>
                   )}
+                  {getStreak(habit.id) > 0 && (
+                    <Text className="text-xs text-mocha-500 font-semibold mt-1">
+                      🔥 {getStreak(habit.id)} day streak
+                    </Text>
+                  )}
+                  <View className="flex-row gap-4 mt-2">
+                    <TouchableOpacity onPress={() => handleEditPress(habit)}>
+                      <Text className="text-xs font-semibold text-mocha-500">Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeletePress(habit)}>
+                      <Text className="text-xs font-semibold text-red-400">Remove</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <TouchableOpacity
-                  onPress={() => toggleHabit(habit.id, TODAY)}
+                  onPress={() => toggleHabit(habit.id, today)}
                   className={`w-10 h-10 rounded-full border-2 items-center justify-center ${
                     done ? "bg-mocha-600 border-mocha-600" : "border-mocha-300"
                   }`}
@@ -70,20 +125,29 @@ export default function HabitsScreen() {
         })}
       </ScrollView>
 
-      <Modal visible={showAdd} animationType="slide" transparent>
+      <Modal visible={showModal} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-mocha-50 rounded-t-3xl p-6">
-            <Text className="text-xl font-bold mb-4">New Habit</Text>
+            <Text className="text-xl font-bold mb-4">
+              {editingHabit ? "Edit Habit" : "New Habit"}
+            </Text>
             <TextInput
-              className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-4"
+              className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-3"
               placeholder="Habit name"
               placeholderTextColor="#c6b29a"
               value={name}
               onChangeText={setName}
               autoFocus
             />
-            <Button label="Add Habit" onPress={handleAdd} className="mb-3" />
-            <Button label="Cancel" variant="ghost" onPress={() => setShowAdd(false)} />
+            <TextInput
+              className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-4"
+              placeholder="Description (optional)"
+              placeholderTextColor="#c6b29a"
+              value={description}
+              onChangeText={setDescription}
+            />
+            <Button label={editingHabit ? "Save" : "Add Habit"} onPress={handleSave} className="mb-3" />
+            <Button label="Cancel" variant="ghost" onPress={() => setShowModal(false)} />
           </View>
         </View>
       </Modal>
