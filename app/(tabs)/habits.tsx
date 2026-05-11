@@ -50,7 +50,7 @@ export default function HabitsScreen() {
   }
 
   function handleDeletePress(habit: Habit) {
-    Alert.alert("Remove habit", `Remove "${habit.name}"? This can't be undone.`, [
+    Alert.alert("Remove protocol", `Remove "${habit.name}"? This can't be undone.`, [
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: () => deleteHabit(habit.id) },
     ]);
@@ -69,8 +69,8 @@ export default function HabitsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-mocha-50">
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-        <View className="flex-row items-center justify-between mt-4 mb-6">
-          <Text className="text-3xl font-bold">Habits 🔥</Text>
+        <View className="flex-row items-center justify-between mt-4 mb-1">
+          <Text className="text-3xl font-bold">Protocols 🤖</Text>
           <TouchableOpacity
             onPress={handleAddPress}
             className="bg-mocha-600 rounded-full w-9 h-9 items-center justify-center"
@@ -78,11 +78,12 @@ export default function HabitsScreen() {
             <Text className="text-white text-xl font-light">+</Text>
           </TouchableOpacity>
         </View>
+        <Text className="text-xs text-mocha-400 mb-5">+10 XP per completion · +25 XP bonus when all done</Text>
 
         {habits.length === 0 && (
           <Card>
             <Text className="text-sm text-mocha-400 text-center">
-              No habits yet. Tap + to add your first one.
+              No protocols yet. Tap + to add your first one.
             </Text>
           </Card>
         )}
@@ -97,11 +98,18 @@ export default function HabitsScreen() {
                   {habit.description && (
                     <Text className="text-sm text-mocha-400 mt-0.5">{habit.description}</Text>
                   )}
-                  {getStreak(habit.id) > 0 && (
-                    <Text className="text-xs text-mocha-500 font-semibold mt-1">
-                      🔥 {getStreak(habit.id)} day streak
-                    </Text>
-                  )}
+                  <View className="flex-row items-center gap-3 mt-1">
+                    {getStreak(habit.id) > 0 && (
+                      <Text className="text-xs text-mocha-500 font-semibold">
+                        🔥 {getStreak(habit.id)} day streak
+                      </Text>
+                    )}
+                    {done && (
+                      <View className="bg-green-100 rounded-full px-2 py-0.5">
+                        <Text className="text-xs font-bold text-green-600">+10 XP</Text>
+                      </View>
+                    )}
+                  </View>
                   <View className="flex-row gap-4 mt-2">
                     <TouchableOpacity onPress={() => handleEditPress(habit)}>
                       <Text className="text-xs font-semibold text-mocha-500">Edit</Text>
@@ -129,11 +137,11 @@ export default function HabitsScreen() {
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-mocha-50 rounded-t-3xl p-6">
             <Text className="text-xl font-bold mb-4">
-              {editingHabit ? "Edit Habit" : "New Habit"}
+              {editingHabit ? "Edit Protocol" : "New Protocol"}
             </Text>
             <TextInput
               className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-3"
-              placeholder="Habit name"
+              placeholder="Protocol name"
               placeholderTextColor="#c6b29a"
               value={name}
               onChangeText={setName}
@@ -146,7 +154,7 @@ export default function HabitsScreen() {
               value={description}
               onChangeText={setDescription}
             />
-            <Button label={editingHabit ? "Save" : "Add Habit"} onPress={handleSave} className="mb-3" />
+            <Button label={editingHabit ? "Save" : "Add Protocol"} onPress={handleSave} className="mb-3" />
             <Button label="Cancel" variant="ghost" onPress={() => setShowModal(false)} />
           </View>
         </View>

@@ -4,25 +4,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Text } from "../../components/ui/Text";
 import { Card } from "../../components/ui/Card";
+import { Mascot } from "../../components/mascot/Mascot";
+import { WellbeingBar } from "../../components/game/WellbeingBar";
+import { XPToast } from "../../components/game/XPToast";
 import { useHabitsStore } from "../../lib/store/habits";
 import { useTasksStore } from "../../lib/store/tasks";
 import { useJournalStore } from "../../lib/store/journal";
 import { useRecommendationsStore } from "../../lib/store/recommendations";
+import { useGameStore, getMascotMessage, computeWellbeing } from "../../lib/store/game";
+import type { MascotExpression } from "../../components/mascot/Mascot";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function todayLabel() {
-  const d = new Date();
-  return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-}
-
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good morning ☕";
-  if (hour >= 12 && hour < 17) return "Good afternoon ☀️";
-  if (hour >= 17 && hour < 21) return "Good evening 🌆";
-  return "Good night 🌙";
+function expressionFromWellbeing(score: number): MascotExpression {
+  if (score >= 76) return "excited";
+  if (score >= 51) return "happy";
+  if (score >= 26) return "neutral";
+  return "sleepy";
 }
 
 export default function TodayScreen() {
@@ -30,6 +26,7 @@ export default function TodayScreen() {
   const { tasks, load: loadTasks, completeTask, addTask } = useTasksStore();
   const { entries } = useJournalStore();
   const { items: recs, loading: recsLoading, error: recsError, load: loadRecs, generate, accept, dismiss } = useRecommendationsStore();
+  const { xp, level, levelName, lastXpGain, load: loadGame } = useGameStore();
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
 
   useFocusEffect(
@@ -38,6 +35,7 @@ export default function TodayScreen() {
       setToday(newToday);
       loadHabits(newToday);
       loadTasks();
+      loadGame();
       loadRecs(newToday).then(() => {
         const pending = useRecommendationsStore.getState().items.filter((r) => r.status === "pending");
         if (pending.length === 0) {
@@ -86,27 +84,64 @@ export default function TodayScreen() {
   const todayEntries = entries.filter((e) => e.date === today);
   const pendingRecs = recs.filter((r) => r.status === "pending");
 
+  const todayMood = todayEntries.find((e) => e.mood != null)?.mood ?? null;
+  const wellbeing = computeWellbeing(completedHabits, habits.length, todayEntries.length > 0, todayMood);
+  const expression = expressionFromWellbeing(wellbeing);
+  const mascotMessage = getMascotMessage(completedHabits, habits.length, todayEntries.length > 0, wellbeing);
+
   return (
     <SafeAreaView className="flex-1 bg-mocha-50">
-      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="mt-4 mb-6">
-          <Text className="text-sm text-mocha-400 font-medium uppercase tracking-widest">
-            {todayLabel()}
-          </Text>
-          <Text className="text-3xl font-bold text-mocha-900 mt-1">{greeting()}</Text>
+      <View style={{ flex: 1, position: "relative" }}>
+        <XPToast amount={lastXpGain} />
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+        {/* Mascot header */}
+        <View className="mt-6 mb-5 items-center">
+          <Mascot expression={expression} size={1} />
+
+          {/* Speech bubble */}
+          <View
+            className="bg-white rounded-2xl px-4 py-3 mt-3 mx-4"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
+              elevation: 2,
+              maxWidth: 300,
+            }}
+          >
+            <Text className="text-sm text-mocha-700 text-center leading-5">{mascotMessage}</Text>
+          </View>
+
+          {/* Wellbeing bar */}
+          <View className="mt-4 w-full">
+            <WellbeingBar score={wellbeing} />
+          </View>
+
+          {/* Level badge */}
+          <View className="flex-row items-center gap-2 mt-3">
+            <View className="bg-mocha-100 rounded-full px-3 py-1">
+              <Text className="text-xs font-bold text-mocha-700">
+                Lv.{level} {levelName}
+              </Text>
+            </View>
+            <Text className="text-xs text-mocha-400 font-medium">{xp} XP</Text>
+          </View>
         </View>
 
-        {/* Habit summary */}
+        {/* Active Protocols (habits) */}
         <Card className="mb-4">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold">Habits</Text>
+            <View>
+              <Text className="text-base font-bold">Active Protocols</Text>
+              <Text className="text-xs text-mocha-400">+10 XP per habit · +25 XP all done</Text>
+            </View>
             <Text className="text-sm text-mocha-400">
-              {completedHabits}/{habits.length} done
+              {completedHabits}/{habits.length}
             </Text>
           </View>
           {habits.length === 0 ? (
-            <Text className="text-sm text-mocha-400">No habits yet. Add one in the Habits tab.</Text>
+            <Text className="text-sm text-mocha-400">No protocols yet. Add one in the Protocols tab.</Text>
           ) : (
             habits.map((habit) => {
               const done = isCompletedToday(habit.id);
@@ -123,23 +158,31 @@ export default function TodayScreen() {
                   >
                     {done && <Text className="text-white text-xs font-bold">✓</Text>}
                   </View>
-                  <Text className={`text-sm font-medium ${done ? "text-mocha-400 line-through" : "text-mocha-900"}`}>
+                  <Text className={`text-sm font-medium flex-1 ${done ? "text-mocha-400 line-through" : "text-mocha-900"}`}>
                     {habit.name}
                   </Text>
+                  {done && (
+                    <View className="bg-green-100 rounded-full px-2 py-0.5">
+                      <Text className="text-xs font-bold text-green-600">+10 XP</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })
           )}
         </Card>
 
-        {/* Tasks for today */}
+        {/* Daily Missions (tasks) */}
         <Card className="mb-4">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold">Tasks</Text>
+            <View>
+              <Text className="text-base font-bold">Daily Missions</Text>
+              <Text className="text-xs text-mocha-400">+15 XP per mission</Text>
+            </View>
             <Text className="text-sm text-mocha-400">{todayTasks.length} open</Text>
           </View>
           {todayTasks.length === 0 ? (
-            <Text className="text-sm text-mocha-400">No open tasks. Add one in the Tasks tab.</Text>
+            <Text className="text-sm text-mocha-400">No open missions. Add one in the Missions tab.</Text>
           ) : (
             todayTasks.map((task) => (
               <TouchableOpacity
@@ -154,14 +197,18 @@ export default function TodayScreen() {
                     <Text className="text-xs text-mocha-400 mt-0.5">Due {task.dueDate}</Text>
                   )}
                 </View>
+                <Text className="text-xs text-mocha-300 font-medium">+15 XP</Text>
               </TouchableOpacity>
             ))
           )}
         </Card>
 
-        {/* Journal prompt */}
+        {/* Wellness Log (journal) */}
         <Card className="mb-4">
-          <Text className="text-base font-bold mb-2">Journal</Text>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-base font-bold">Wellness Log</Text>
+            <Text className="text-xs text-mocha-400">+20 XP for logging</Text>
+          </View>
           {todayEntries.length > 0 ? (
             <>
               <Text className="text-xs text-mocha-400 mb-1">
@@ -173,15 +220,15 @@ export default function TodayScreen() {
             </>
           ) : (
             <Text className="text-sm text-mocha-400">
-              You haven't written today. Head to the Journal tab to reflect.
+              No log entry yet. Head to the Wellness Log tab to reflect.
             </Text>
           )}
         </Card>
 
-        {/* Recommendations */}
+        {/* Care Advisor (recommendations) */}
         <View className="mb-8">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold">Suggested for you</Text>
+            <Text className="text-base font-bold">Care Advisor</Text>
             {recsLoading && <ActivityIndicator size="small" color="#c67332" />}
           </View>
 
@@ -198,7 +245,7 @@ export default function TodayScreen() {
                 onPress={() => triggerGenerate(today)}
                 className="bg-mocha-100 rounded-xl py-2 px-4 self-center"
               >
-                <Text className="text-sm font-semibold text-mocha-700">Get more suggestions</Text>
+                <Text className="text-sm font-semibold text-mocha-700">Request new suggestions</Text>
               </TouchableOpacity>
             </Card>
           ) : (
@@ -226,13 +273,13 @@ export default function TodayScreen() {
                       onPress={() => handleAccept(rec.id)}
                       className="flex-1 bg-mocha-600 rounded-xl py-2 items-center"
                     >
-                      <Text className="text-white text-sm font-semibold">Add</Text>
+                      <Text className="text-white text-sm font-semibold">Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => dismiss(rec.id)}
                       className="flex-1 bg-mocha-100 rounded-xl py-2 items-center"
                     >
-                      <Text className="text-mocha-600 text-sm font-semibold">Skip</Text>
+                      <Text className="text-mocha-600 text-sm font-semibold">Dismiss</Text>
                     </TouchableOpacity>
                   </View>
                 </Card>
@@ -243,13 +290,14 @@ export default function TodayScreen() {
                   onPress={() => triggerGenerate(today)}
                   className="items-center py-3"
                 >
-                  <Text className="text-sm font-semibold text-mocha-500">Give me more suggestions</Text>
+                  <Text className="text-sm font-semibold text-mocha-500">Request more suggestions</Text>
                 </TouchableOpacity>
               )}
             </>
           )}
         </View>
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

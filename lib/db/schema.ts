@@ -63,3 +63,10 @@ export const recommendations = sqliteTable("recommendations", {
   status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'dismissed'
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+export const playerStats = sqliteTable("player_stats", {
+  id: text("id").primaryKey(), // always 'singleton'
+  xp: integer("xp").notNull().default(0),
+  lastBonusDate: text("last_bonus_date"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});

@@ -76,4 +76,13 @@ export async function runMigrations() {
       created_at INTEGER NOT NULL
     )
   `);
+
+  await db.run(sql`
+    CREATE TABLE IF NOT EXISTS player_stats (
+      id TEXT PRIMARY KEY,
+      xp INTEGER NOT NULL DEFAULT 0,
+      last_bonus_date TEXT,
+      updated_at INTEGER NOT NULL
+    )
+  `);
 }
