@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { ScrollView, View, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text } from "../../components/ui/Text";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
-import { useTasksStore } from "../../lib/store/tasks";
-import { PRIORITY_COLORS, Priority } from "../../types";
+import { Text } from "../../ui/Text";
+import { Card } from "../../ui/Card";
+import { Button } from "../../ui/Button";
+import { useTasksStore } from "../../../lib/store/tasks";
+import { PRIORITY_COLORS, Priority } from "../../../types";
 
 type Task = { id: string; title: string; priority: string };
 
 const PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
 
-export default function TasksScreen() {
+export function TasksScreen() {
   const { tasks, load, addTask, updateTask, completeTask, deleteTask } = useTasksStore();
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -54,7 +54,7 @@ export default function TasksScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-mocha-50">
+    <SafeAreaView className="flex-1 bg-mocha-50" edges={["left", "right"]}>
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         <View className="flex-row items-center justify-between mt-4 mb-1">
           <Text className="text-3xl font-bold">Missions ✓</Text>

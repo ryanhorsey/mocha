@@ -1,18 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { ScrollView, View, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { Text } from "../../components/ui/Text";
-import { Card } from "../../components/ui/Card";
-import { Mascot } from "../../components/mascot/Mascot";
-import { WellbeingBar } from "../../components/game/WellbeingBar";
-import { XPToast } from "../../components/game/XPToast";
-import { useHabitsStore } from "../../lib/store/habits";
-import { useTasksStore } from "../../lib/store/tasks";
-import { useJournalStore } from "../../lib/store/journal";
-import { useRecommendationsStore } from "../../lib/store/recommendations";
-import { useGameStore, getMascotMessage, computeWellbeing } from "../../lib/store/game";
-import type { MascotExpression } from "../../components/mascot/Mascot";
+import { Text } from "../../ui/Text";
+import { Card } from "../../ui/Card";
+import { Mascot } from "../../mascot/Mascot";
+import { WellbeingBar } from "../../game/WellbeingBar";
+import { XPToast } from "../../game/XPToast";
+import { useHabitsStore } from "../../../lib/store/habits";
+import { useTasksStore } from "../../../lib/store/tasks";
+import { useJournalStore } from "../../../lib/store/journal";
+import { useRecommendationsStore } from "../../../lib/store/recommendations";
+import { useGameStore, getMascotMessage, computeWellbeing } from "../../../lib/store/game";
+import type { MascotExpression } from "../../mascot/Mascot";
 
 function expressionFromWellbeing(score: number): MascotExpression {
   if (score >= 76) return "excited";
@@ -21,7 +20,7 @@ function expressionFromWellbeing(score: number): MascotExpression {
   return "sleepy";
 }
 
-export default function TodayScreen() {
+export function TodayScreen() {
   const { habits, load: loadHabits, toggleHabit, isCompletedToday, addHabit } = useHabitsStore();
   const { tasks, load: loadTasks, completeTask, addTask } = useTasksStore();
   const { entries } = useJournalStore();
@@ -29,21 +28,19 @@ export default function TodayScreen() {
   const { xp, level, levelName, lastXpGain, load: loadGame } = useGameStore();
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const newToday = new Date().toISOString().split("T")[0];
-      setToday(newToday);
-      loadHabits(newToday);
-      loadTasks();
-      loadGame();
-      loadRecs(newToday).then(() => {
-        const pending = useRecommendationsStore.getState().items.filter((r) => r.status === "pending");
-        if (pending.length === 0) {
-          triggerGenerate(newToday);
-        }
-      });
-    }, [])
-  );
+  useEffect(() => {
+    const newToday = new Date().toISOString().split("T")[0];
+    setToday(newToday);
+    loadHabits(newToday);
+    loadTasks();
+    loadGame();
+    loadRecs(newToday).then(() => {
+      const pending = useRecommendationsStore.getState().items.filter((r) => r.status === "pending");
+      if (pending.length === 0) {
+        triggerGenerate(newToday);
+      }
+    });
+  }, []);
 
   function triggerGenerate(date: string) {
     const recentMoods = entries.slice(0, 7).map((e) => e.mood);
@@ -90,7 +87,7 @@ export default function TodayScreen() {
   const mascotMessage = getMascotMessage(completedHabits, habits.length, todayEntries.length > 0, wellbeing);
 
   return (
-    <SafeAreaView className="flex-1 bg-mocha-50">
+    <SafeAreaView className="flex-1 bg-mocha-50" edges={["left", "right"]}>
       <View style={{ flex: 1, position: "relative" }}>
         <XPToast amount={lastXpGain} />
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>

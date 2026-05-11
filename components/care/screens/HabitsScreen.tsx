@@ -1,15 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { ScrollView, View, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { Text } from "../../components/ui/Text";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
-import { useHabitsStore } from "../../lib/store/habits";
+import { Text } from "../../ui/Text";
+import { Card } from "../../ui/Card";
+import { Button } from "../../ui/Button";
+import { useHabitsStore } from "../../../lib/store/habits";
 
 type Habit = { id: string; name: string; description: string | null };
 
-export default function HabitsScreen() {
+export function HabitsScreen() {
   const { habits, load, toggleHabit, addHabit, updateHabit, deleteHabit, isCompletedToday, getStreak } = useHabitsStore();
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
   const [showModal, setShowModal] = useState(false);
@@ -17,13 +16,11 @@ export default function HabitsScreen() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
-  useFocusEffect(
-    useCallback(() => {
-      const newToday = new Date().toISOString().split("T")[0];
-      setToday(newToday);
-      load(newToday);
-    }, [])
-  );
+  useEffect(() => {
+    const newToday = new Date().toISOString().split("T")[0];
+    setToday(newToday);
+    load(newToday);
+  }, []);
 
   const completedCount = habits.filter((h) => isCompletedToday(h.id)).length;
   const canAddHabit = habits.length === 0 || completedCount / habits.length >= 0.5;
@@ -67,7 +64,7 @@ export default function HabitsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-mocha-50">
+    <SafeAreaView className="flex-1 bg-mocha-50" edges={["left", "right"]}>
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         <View className="flex-row items-center justify-between mt-4 mb-1">
           <Text className="text-3xl font-bold">Protocols 🤖</Text>

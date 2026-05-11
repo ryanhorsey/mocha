@@ -1,12 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { ScrollView, View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { Text } from "../../components/ui/Text";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
-import { useJournalStore } from "../../lib/store/journal";
-import { MOOD_EMOJIS, MOOD_LABELS } from "../../types";
+import { Text } from "../../ui/Text";
+import { Card } from "../../ui/Card";
+import { Button } from "../../ui/Button";
+import { useJournalStore } from "../../../lib/store/journal";
+import { MOOD_EMOJIS, MOOD_LABELS } from "../../../types";
 
 const MOODS = [1, 2, 3, 4, 5] as const;
 
@@ -18,7 +17,7 @@ const PROMPTS = [
   "How are you really feeling?",
 ];
 
-export default function JournalScreen() {
+export function JournalScreen() {
   const { entries, load, addEntry, updateEntry, deleteEntry } = useJournalStore();
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
   const [content, setContent] = useState("");
@@ -28,13 +27,11 @@ export default function JournalScreen() {
 
   const dailyPrompt = PROMPTS[new Date().getDay() % PROMPTS.length];
 
-  useFocusEffect(
-    useCallback(() => {
-      const newToday = new Date().toISOString().split("T")[0];
-      setToday(newToday);
-      load(newToday);
-    }, [])
-  );
+  useEffect(() => {
+    const newToday = new Date().toISOString().split("T")[0];
+    setToday(newToday);
+    load(newToday);
+  }, []);
 
   function startEdit(entry: (typeof entries)[0]) {
     setEditingId(entry.id);
@@ -73,7 +70,7 @@ export default function JournalScreen() {
   const pastEntries = entries.filter((e) => e.date !== today);
 
   return (
-    <SafeAreaView className="flex-1 bg-mocha-50">
+    <SafeAreaView className="flex-1 bg-mocha-50" edges={["left", "right"]}>
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
         <View className="mt-4 mb-4">
           <Text className="text-3xl font-bold">Wellness Log 📓</Text>
