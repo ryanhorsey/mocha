@@ -3,6 +3,7 @@ import { db } from "../db";
 import { journalEntries } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
+import { useGameStore } from "./game";
 
 type JournalEntry = typeof journalEntries.$inferSelect;
 
@@ -38,6 +39,7 @@ export const useJournalStore = create<JournalStore>((set, get) => ({
     };
     set((s) => ({ entries: [newEntry, ...s.entries] }));
     if (db) await db.insert(journalEntries).values(newEntry);
+    await useGameStore.getState().addXP(20);
   },
 
   updateEntry: async (id, content, mood) => {

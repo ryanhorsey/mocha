@@ -3,6 +3,7 @@ import { db } from "../db";
 import { habits, habitLogs } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
+import { useGameStore } from "./game";
 
 type Habit = typeof habits.$inferSelect;
 type HabitLog = typeof habitLogs.$inferSelect;
@@ -102,7 +103,8 @@ export const useHabitsStore = create<HabitsStore>((set, get) => ({
 
   toggleHabit: async (habitId, date) => {
     const existing = get().todayLogs.find((l) => l.habitId === habitId);
-    const completedAt = existing?.completedAt ? null : new Date();
+    const togglingOn = !existing?.completedAt;
+    const completedAt = togglingOn ? new Date() : null;
 
     if (existing) {
       set((s) => ({
@@ -123,6 +125,13 @@ export const useHabitsStore = create<HabitsStore>((set, get) => ({
       if (db) await db.insert(habitLogs).values(newLog);
     }
     await get().load(date);
+
+    if (togglingOn) {
+      await useGameStore.getState().addXP(10);
+      const { habits: allHabits, todayLogs } = get();
+      const completedCount = todayLogs.filter((l) => !!l.completedAt).length;
+      await useGameStore.getState().checkAllHabitsBonus(completedCount, allHabits.length, date);
+    }
   },
 
   isCompletedToday: (habitId) => {

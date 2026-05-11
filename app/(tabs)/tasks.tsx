@@ -56,8 +56,8 @@ export default function TasksScreen() {
   return (
     <SafeAreaView className="flex-1 bg-mocha-50">
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-        <View className="flex-row items-center justify-between mt-4 mb-6">
-          <Text className="text-3xl font-bold">Tasks ✓</Text>
+        <View className="flex-row items-center justify-between mt-4 mb-1">
+          <Text className="text-3xl font-bold">Missions ✓</Text>
           <TouchableOpacity
             onPress={handleAddPress}
             className="bg-mocha-600 rounded-full w-9 h-9 items-center justify-center"
@@ -65,11 +65,12 @@ export default function TasksScreen() {
             <Text className="text-white text-xl font-light">+</Text>
           </TouchableOpacity>
         </View>
+        <Text className="text-xs text-mocha-400 mb-5">+15 XP per completed mission</Text>
 
         {tasks.length === 0 && (
           <Card>
             <Text className="text-sm text-mocha-400 text-center">
-              No open tasks. Tap + to add one.
+              No open missions. Tap + to add one.
             </Text>
           </Card>
         )}
@@ -99,13 +100,16 @@ export default function TasksScreen() {
                     <Text className="text-xs text-mocha-400">Due {task.dueDate}</Text>
                   )}
                 </View>
-                <View className="flex-row gap-4 mt-2">
+                <View className="flex-row items-center gap-4 mt-2">
                   <TouchableOpacity onPress={() => handleEditPress(task)}>
                     <Text className="text-xs font-semibold text-mocha-500">Edit</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDeletePress(task)}>
                     <Text className="text-xs font-semibold text-red-400">Delete</Text>
                   </TouchableOpacity>
+                  <View className="ml-auto">
+                    <Text className="text-xs text-mocha-300 font-medium">+15 XP</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -117,11 +121,11 @@ export default function TasksScreen() {
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-mocha-50 rounded-t-3xl p-6">
             <Text className="text-xl font-bold mb-4">
-              {editingTask ? "Edit Task" : "New Task"}
+              {editingTask ? "Edit Mission" : "New Mission"}
             </Text>
             <TextInput
               className="bg-white border border-mocha-200 rounded-xl px-4 py-3 text-mocha-900 mb-4"
-              placeholder="Task title"
+              placeholder="Mission title"
               placeholderTextColor="#c6b29a"
               value={title}
               onChangeText={setTitle}
@@ -147,7 +151,7 @@ export default function TasksScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Button label={editingTask ? "Save" : "Add Task"} onPress={handleSave} className="mb-3" />
+            <Button label={editingTask ? "Save" : "Add Mission"} onPress={handleSave} className="mb-3" />
             <Button label="Cancel" variant="ghost" onPress={() => setShowModal(false)} />
           </View>
         </View>

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { tasks } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
+import { useGameStore } from "./game";
 
 type Task = typeof tasks.$inferSelect;
 
@@ -58,6 +59,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
   completeTask: async (id) => {
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
     if (db) await db.update(tasks).set({ completedAt: new Date(), updatedAt: new Date() }).where(eq(tasks.id, id));
+    await useGameStore.getState().addXP(15);
   },
 
   deleteTask: async (id) => {

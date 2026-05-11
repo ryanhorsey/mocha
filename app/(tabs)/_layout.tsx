@@ -30,29 +30,29 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today",
-          tabBarIcon: ({ focused }) => <TabIcon label="☀️" focused={focused} />,
+          title: "Dashboard",
+          tabBarIcon: ({ focused }) => <TabIcon label="🤖" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="habits"
         options={{
-          title: "Habits",
-          tabBarIcon: ({ focused }) => <TabIcon label="🔥" focused={focused} />,
+          title: "Protocols",
+          tabBarIcon: ({ focused }) => <TabIcon label="🔬" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="tasks"
         options={{
-          title: "Tasks",
-          tabBarIcon: ({ focused }) => <TabIcon label="✓" focused={focused} />,
+          title: "Missions",
+          tabBarIcon: ({ focused }) => <TabIcon label="🎯" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="journal"
         options={{
-          title: "Journal",
-          tabBarIcon: ({ focused }) => <TabIcon label="📓" focused={focused} />,
+          title: "Wellness Log",
+          tabBarIcon: ({ focused }) => <TabIcon label="📋" focused={focused} />,
         }}
       />
       <Tabs.Screen

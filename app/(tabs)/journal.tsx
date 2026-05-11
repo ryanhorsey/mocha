@@ -75,9 +75,10 @@ export default function JournalScreen() {
   return (
     <SafeAreaView className="flex-1 bg-mocha-50">
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
-        <View className="mt-4 mb-6">
-          <Text className="text-3xl font-bold">Journal 📓</Text>
+        <View className="mt-4 mb-4">
+          <Text className="text-3xl font-bold">Wellness Log 📓</Text>
           <Text className="text-sm text-mocha-400 mt-1">{today}</Text>
+          <Text className="text-xs text-mocha-400 mt-0.5">+20 XP for each new entry</Text>
         </View>
 
         {/* Mood */}
@@ -118,7 +119,7 @@ export default function JournalScreen() {
             <Button label="Cancel" variant="ghost" onPress={cancelEdit} className="flex-1" />
           )}
           <Button
-            label={saved ? "Saved ✓" : editingId ? "Save changes" : "Save Entry"}
+            label={saved ? "Saved ✓  +20 XP" : editingId ? "Save changes" : "Log Entry"}
             onPress={handleSave}
             className={editingId ? "flex-1" : ""}
           />
