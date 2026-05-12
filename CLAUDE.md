@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Keep this file up to date.** Whenever you make structural changes — new files, renamed files, new dependencies, routing changes, state changes — update the relevant section here before finishing the task.
+
 ## Commands
 
 ```bash
@@ -24,7 +26,45 @@ There is no lint or test script configured.
 
 ### Routing
 
-Expo Router with file-based routing. `app/_layout.tsx` is the root — it runs DB migrations before rendering anything. `app/(tabs)/` holds the five tab screens: Today (`index`), Habits, Tasks, Journal, More.
+Expo Router with file-based routing. `app/_layout.tsx` is the root — it runs DB migrations before rendering anything and wraps the app in `GestureHandlerRootView` + `SafeAreaProvider`.
+
+`app/(worlds)/` is the single active route group. It renders `OrbWorldContainer`, which owns three simultaneously-mounted worlds and a floating orb HUD. **There is no `app/(tabs)/` anymore** — it was replaced by this group in the three-world navigation redesign.
+
+### Three-world navigation
+
+The app has three top-level "worlds" swapped via a 3-orb triangle HUD:
+
+| World | Key | Color | Description |
+|---|---|---|---|
+| Village | `village` | `#7fb069` | City-builder scene (Phase 3 placeholder now) |
+| Care | `care` | `#c67332` | Habits, tasks, journal, today dashboard |
+| You | `you` | `#7d6cd1` | Profile, settings, sync (placeholder, roadmap) |
+
+**Orb mechanic:** Three orbs sit at top-left, top-right, and bottom-middle of the screen. The bottom-middle orb is the active world. Tapping a top orb rotates all three one position (tap-TL = +1/clockwise, tap-TR = −1/counter-clockwise). Horizontal swipe is a backup gesture. Reduced-motion users get a crossfade instead of orbit animation.
+
+**Key files:**
+- `components/worlds/orbConfig.ts` — world order, colors, labels, orb sizing constants
+- `components/worlds/OrbWorldContainer.tsx` — owns `rotationInt` state, Reanimated `rotationSV`, gesture detection, coachmark
+- `components/worlds/OrbHUD.tsx` — positions and animates the three orbs using a periodic interpolation table
+- `components/worlds/Orb.tsx` — clay-style orb with specular highlight, glow, occlusion
+- `components/worlds/CareWorld.tsx` — top segmented control + conditionally renders one of four care screens
+- `components/worlds/CareSegmented.tsx` — Today / Habits / Tasks / Journal pill tabs
+- `components/worlds/VillageWorld.tsx` — placeholder (mascot + wellbeing; Skia scene is Phase 3)
+- `components/worlds/YouWorld.tsx` — placeholder (migrated More content; full settings is Phase 2)
+- `components/worlds/OrbCoachmark.tsx` — first-launch tip persisted via `expo-secure-store` key `mocha.coachmarkDismissed`
+
+**All three worlds stay mounted at all times.** Switching is a Reanimated translateX/opacity overlay — NOT a route change. Scroll position and form state are preserved across switches.
+
+### Care screens
+
+The four care screens are named exports (not default exports, not route components) in `components/care/screens/`:
+
+- `TodayScreen.tsx` — dashboard with mascot, wellbeing bar, habits, tasks, journal summary, AI recommendations
+- `HabitsScreen.tsx` — habit list with streaks, add/edit/delete
+- `TasksScreen.tsx` — task list with priorities, add/edit/delete
+- `JournalScreen.tsx` — mood logging + freeform journal entries
+
+These screens use `useEffect` (not `useFocusEffect`) since they are no longer route components. `SafeAreaView` uses `edges={["left", "right"]}` only — top edge is handled by `CareWorld`'s outer `SafeAreaView`.
 
 ### Data layer
 
@@ -39,8 +79,9 @@ Each domain has a Zustand store in `lib/store/`:
 - `tasks.ts` — open tasks (completed tasks are filtered out on load)
 - `journal.ts` — all journal entries, ordered newest-first
 - `recommendations.ts` — AI suggestions via Gemini 2.5 Flash
+- `game.ts` — XP, level, levelName, wellbeing score, lastXpGain
 
-Stores follow the same pattern: optimistic local state update → async DB write. Screens call `store.load()` inside `useFocusEffect` to refresh on tab focus.
+Stores follow the same pattern: optimistic local state update → async DB write. Screens call `store.load()` inside `useEffect` on mount to load data (previously `useFocusEffect`, changed when screens became non-route components).
 
 ### AI recommendations
 
@@ -48,7 +89,9 @@ Stores follow the same pattern: optimistic local state update → async DB write
 
 ### Styling
 
-NativeWind 4 (Tailwind CSS for React Native). Custom `mocha` color palette defined in `tailwind.config.js` — use `mocha-50` through `mocha-900` for all UI colors. The primary brand color is `mocha-500` (`#c67332`). Shared primitives are `components/ui/Text.tsx` and `components/ui/Card.tsx`; prefer these over raw RN components. Global styles are in `global.css` (imported by the root layout).
+NativeWind 4 (Tailwind CSS for React Native). Custom `mocha` color palette defined in `tailwind.config.js` — use `mocha-50` through `mocha-900` for all UI colors. The primary brand color is `mocha-500` (`#c67332`). Shared primitives are `components/ui/Text.tsx`, `components/ui/Card.tsx`, and `components/ui/Button.tsx`; prefer these over raw RN components. Global styles are in `global.css` (imported by the root layout).
+
+Target visual style: **claymorphism** — soft multi-layer shadows, large border radii (40–50 outer / 32 cards / 20 buttons), spring squish on press, light haptics per tap.
 
 ### Environment variables
 
@@ -59,3 +102,18 @@ All vars are prefixed `EXPO_PUBLIC_` so they're embedded at build time. Required
 ### Shared types
 
 `types/index.ts` exports `Priority`, `Frequency`, `Mood` types and display constants (`MOOD_LABELS`, `MOOD_EMOJIS`, `PRIORITY_COLORS`). Import from here rather than redefining locally.
+
+### Dependencies added in session (2026-05-11)
+
+- `expo-haptics ~15.0.8` — orb press feedback, segmented control selection taps
+
+### Known issues
+
+- `components/care/screens/TasksScreen.tsx`: pre-existing TS error — local `Task` type uses `priority: string` but the store's type is `priority: string | null`. Not introduced by the navigation refactor; needs a follow-up fix.
+
+## Roadmap
+
+- **Phase 2** — You world: account, Supabase sync status, mascot customization, theme toggle, data export, reset.
+- **Phase 3** — Mocha Village (Skia): replace `VillageWorld.tsx` placeholder with a `@shopify/react-native-skia` scene; buildings/plants tied to specific habits; growth driven by wellbeing; tap-to-inspect; weather/lighting reflects wellbeing.
+- **Phase 4** — Polish: claymorphism pass on shared `Card`/`Button`/`Text` primitives, coachmark copy tuning, haptics, animation timing.
+- **Future** — Supabase sync, auth, push notifications, Apple Watch companion.
